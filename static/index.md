@@ -1,9 +1,18 @@
 # About
 
-Bucket Rain Gauge is an ESPHome firmware for an ESP32-C3 driving a
-tipping-bucket rain sensor. It reports rainfall to Home Assistant over the
-native ESPHome API and supports OTA updates through the DoYouHost beta and
-production channels.
+Bucket Rain Gauge is an ESPHome firmware for a Seeed Studio XIAO ESP32-C3
+driving a tipping-bucket rain gauge, with onboard temperature, humidity, and
+pressure sensing. It reports to Home Assistant over the native ESPHome API and
+supports OTA updates through the DoYouHost beta and production channels.
+
+Measurements include rainfall totals (lifetime and per day / week / month /
+year), rain rate (1-minute, 10-minute average, and hourly), and weather from an
+AHT20 + BMP280 sensor. Rain detection uses a 49E Hall sensor with runtime
+calibration, so no reflashing is needed to tune it.
+
+After flashing, onboard Wi-Fi with Improv (over Bluetooth or USB serial) and
+adopt the device into your own Home Assistant — local time and timezone come
+from HA automatically.
 
 # Installation
 

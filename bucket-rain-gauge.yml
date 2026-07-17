@@ -70,7 +70,7 @@ provisioning:
 api:
   reboot_timeout: 15min
   encryption:
-    key: !secret api_key
+    # key: !secret api_key
 
 ota:
   - platform: esphome
