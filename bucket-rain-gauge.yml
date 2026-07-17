@@ -1,13 +1,4 @@
----
-# Skeleton ESPHome configuration. Rename this file to match `files[0]` in
-# project.yaml and fill in the project-specific configuration.
-#
-# Generate fresh API_KEY / OTA_PASSWORD values before first build:
-#   esphome-keygen
-#   openssl rand -base64 24
-
 substitutions:
-  API_KEY: "mmz2rre/GzNH7GFXcOKkJHicqeYhahefMZrLA5ArHsI="
   OTA_PASSWORD: "OwRKb2kXFQT0NFhk7/ydpE+YCV+4ytk0"
   PROD_MANIFEST_URL: "https://morganmlg.com/BucketRainGauge/manifest.json"
   BETA_MANIFEST_URL: "https://morganmlg.com/BucketRainGauge/manifest-beta.json"
@@ -41,6 +32,7 @@ packages:
     files:
       - basic.yaml
       - debug.yaml
+      - buttons.yaml
       - updateBetaProdStaging.yaml
       - wifiInfo.yaml
     ref: main
@@ -53,16 +45,34 @@ wifi:
   ap:
     ssid: "${AP_SSID}"
     password: "${AP_PASSWORD}"
+  on_connect:
+    - script.execute: improv_disable_grace
+  on_disconnect:
+    - script.stop: improv_disable_grace
+    - lambda: "id(improv_ble).start();"
 
 captive_portal:
 
 improv_serial:
 
+esp32_improv:
+  id: improv_ble
+  authorizer: none
+
+provisioning:
+  timeout: 5min
+
 api:
   reboot_timeout: 15min
   encryption:
-    key: "${API_KEY}"
 
 ota:
   - platform: esphome
     password: "${OTA_PASSWORD}"
+
+script:
+  - id: improv_disable_grace
+    mode: restart
+    then:
+      - delay: 10s
+      - lambda: "id(improv_ble).stop();"
