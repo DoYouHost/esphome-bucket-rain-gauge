@@ -1,0 +1,177 @@
+name: Template Init
+
+# One-shot workflow that runs after someone clicks "Use this template" and
+# pushes the first commit. It opens an initialization issue with a manual
+# checklist and removes itself so it never runs again.
+#
+# Skipped on the template repository itself via the `is_template` flag.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  init:
+    name: Open initialization issue
+    if: github.event.repository.is_template == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Skip if init issue already exists
+        id: guard
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          EXISTING=$(gh issue list \
+            --state all \
+            --search "Template initialization checklist in:title" \
+            --json number \
+            --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            echo "Init issue #$EXISTING already exists, skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read project name from project.yaml
+        if: steps.guard.outputs.skip == 'false'
+        id: cfg
+        run: |
+          if [ -f project.yaml ]; then
+            PROJECT_NAME=$(yq '.project_name' project.yaml)
+          else
+            PROJECT_NAME="your project"
+          fi
+          echo "project_name=$PROJECT_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create initialization issue
+        if: steps.guard.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT_NAME: ${{ steps.cfg.outputs.project_name }}
+        run: |
+          set -euo pipefail
+          BODY_FILE=$(mktemp)
+          cat > "$BODY_FILE" <<'EOF'
+          # Welcome to your new DoYouHost ESPHome project!
+
+          This repository was created from
+          [`DoYouHost.ESPHomeProjectTemplate`](https://github.com/DoYouHost/ESPHomeProjectTemplate).
+          A few things still need to be wired up by hand. Tick the boxes as
+          you go — close the issue when you're done.
+
+          ## 1. Project metadata
+
+          - [ ] Edit [`project.yaml`](../blob/main/project.yaml):
+            - [ ] `project_name`
+            - [ ] `r2_directory`
+            - [ ] `esphome_version`
+            - [ ] `files` (entry-point YAMLs)
+            - [ ] `r2_cleanup_days` (default: 90)
+
+          ## 2. ESPHome configuration
+
+          - [ ] Rename `esp32-template.yml` to match `files[0]` from `project.yaml`
+          - [ ] Generate fresh secrets in `substitutions`:
+            - [ ] `API_KEY` — base64-encoded 32-byte key for ESPHome native API
+            - [ ] `OTA_PASSWORD` — random password for OTA updates
+
+            Example commands:
+
+            ```bash
+            # API_KEY (32 random bytes, base64-encoded)
+            openssl rand -base64 32
+
+            # OTA_PASSWORD (24 random bytes, base64-encoded)
+            openssl rand -base64 24
+            ```
+          - [ ] Update `substitutions`:
+            - [ ] `PROD_MANIFEST_URL` (point at your R2 directory)
+            - [ ] `BETA_MANIFEST_URL`
+            - [ ] `AP_SSID` and `AP_PASSWORD`
+          - [ ] Update `esphome:` block:
+            - [ ] `name`
+            - [ ] `friendly_name`
+            - [ ] `comment`
+            - [ ] `project.name` (e.g. `DoYouHost.YourProject`)
+          - [ ] Update `dashboard_import.package_import_url` to point at this repo
+          - [ ] Adjust `esp32:` board / framework settings for your hardware
+
+          ## 3. Versioning & changelog
+
+          - [ ] Reset `version.txt` to your starting version (e.g. `2026.1.0`)
+          - [ ] Replace the placeholder entry in `CHANGELOG.md`
+
+          ## 4. GitHub Pages landing
+
+          - [ ] Edit `static/index.md` with project description
+          - [ ] (Optional) Enable GitHub Pages in **Settings → Pages**
+                (source: GitHub Actions)
+          - [ ] `static/_config.yaml` — leave as-is, the `publish-pages`
+                workflow rewrites `title:` from `project.yaml` automatically
+
+          ## 5. CI secrets
+
+          Configure these in **Settings → Secrets and variables → Actions**
+          (or inherit from the org):
+
+          - [ ] `DOYOUHOST_PAT` — PAT used to publish releases and dispatch
+                follow-up workflows
+          - [ ] `CF_ACCOUNT_ID`
+          - [ ] `CF_ACCESS_KEY_ID`
+          - [ ] `CF_SECRET_ACCESS_KEY`
+          - [ ] `CF_BUCKET_NAME`
+
+          ## 6. Workflows (only if defaults don't fit)
+
+          - [ ] `.github/workflows/r2-cleanup.yaml` — adjust the cron schedule
+                if weekly Saturdays at 02:00 UTC is wrong (cron can't be
+                sourced from `project.yaml` because GitHub parses it before
+                the job runs)
+
+          ## 7. Documentation
+
+          - [ ] Replace this `README.md` with project-specific content
+
+          ## 8. First build
+
+          - [ ] Push a commit whose message starts with `BUILD:` (or trigger
+                **Build and Pre-release** manually from the Actions tab)
+          - [ ] Confirm the pre-release shows up under **Releases**
+          - [ ] Confirm the firmware lands in your R2 `beta` channel
+
+          ---
+
+          ℹ️ This issue and the `template-init.yaml` workflow are auto-generated
+          by the template. The workflow self-deletes after creating this issue,
+          so it will not run again on subsequent pushes.
+          EOF
+
+          gh issue create \
+            --title "Template initialization checklist" \
+            --body-file "$BODY_FILE" \
+            --assignee "${{ github.actor }}" \
+            --label "template-init" 2>/dev/null || \
+          gh issue create \
+            --title "Template initialization checklist" \
+            --body-file "$BODY_FILE" \
+            --assignee "${{ github.actor }}"
+
+      - name: Self-delete this workflow
+        if: steps.guard.outputs.skip == 'false'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/template-init.yaml
+          git commit -m "chore: remove one-shot template-init workflow [skip ci]"
+          git push

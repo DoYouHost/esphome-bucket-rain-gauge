@@ -1,0 +1,23 @@
+# Single source of truth for project-level metadata used by GitHub Actions.
+# Edit this file when initializing a new project from the template.
+# All workflows in .github/workflows read these values via the
+# `load-project-config` composite action.
+
+# Display / release name. Used as `combined-name` for the build,
+# in release URLs, and as the AP fallback SSID seed.
+project_name: ProjectTemplate
+
+# Cloudflare R2 directory (under your bucket) where firmware artifacts
+# and manifests are stored. Used by upload-to-r2, promote-r2 and r2-cleanup.
+r2_directory: ProjectTemplate
+
+# ESPHome version pinned for this project's builds.
+esphome_version: "2026.4.3"
+
+# ESPHome YAML files to compile. All entries are built and published
+# together under one release.
+files:
+  - esp32-template.yml
+
+# Days an artifact must survive in R2 before r2-cleanup may remove it.
+r2_cleanup_days: 90
