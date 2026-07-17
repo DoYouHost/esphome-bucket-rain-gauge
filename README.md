@@ -1,33 +1,25 @@
-# DoYouHost ESPHome Project Template
+# Bucket Rain Gauge
 
-Template for creating new ESPHome projects in the DoYouHost organization.
-The CI pipeline (build → pre-release → R2 → beta → production promotion)
-is shared via [`DoYouHost/workflows`](https://github.com/DoYouHost/workflows)
+ESPHome firmware for an **ESP32-C3** driving a tipping-bucket rain gauge.
+Rainfall is reported to Home Assistant over the native ESPHome API, with OTA
+updates delivered through the DoYouHost `beta` and `production` channels.
+
+The CI pipeline (build → pre-release → R2 → beta → production promotion) is
+shared via [`DoYouHost/workflows`](https://github.com/DoYouHost/workflows)
 and [`DoYouHost/ESPHomeTemplates`](https://github.com/DoYouHost/ESPHomeTemplates).
 
-## Initializing a new project
+## Configuration
 
-1. Create a new repository from this template (GitHub: *Use this template*).
-2. Edit [`project.yaml`](project.yaml) — this is the only file containing
-   project-level metadata consumed by the workflows:
-   - `project_name`
-   - `r2_directory`
-   - `esphome_version`
-   - `files` (list of ESPHome YAML entry points)
-   - `r2_cleanup_days`
-3. Rename the skeleton `esp32-template.yml` to match `files[0]` from
-   `project.yaml`, then fill in the project-specific configuration.
-4. Generate fresh `API_KEY` and `OTA_PASSWORD` values in `substitutions`.
-5. Update the `dashboard_import.package_import_url` and the manifest URLs
-   to point at the new repository / R2 directory.
-6. Reset `version.txt` to your starting version (e.g. `2026.1.0`) and
-   start a fresh `CHANGELOG.md`.
-7. In `static/_config.yaml`, leave `title:` as-is — it is rewritten by the
-   `publish-pages` workflow using `project_name` from `project.yaml`.
+- [`bucket-rain-gauge.yml`](bucket-rain-gauge.yml) — the ESPHome entry point.
+  Targets the Seeed Studio XIAO ESP32-C3 (`seeed_xiao_esp32c3`) with the
+  ESP-IDF framework; adjust the `board:` value if your hardware differs.
+- [`project.yaml`](project.yaml) — the single source of truth for
+  project-level metadata consumed by the workflows (`project_name`,
+  `r2_directory`, `esphome_version`, `files`, `r2_cleanup_days`).
 
 ## Required secrets
 
-Configure these secrets in the new repository (or inherit from the org):
+Configure these in the repository (or inherit from the org):
 
 - `DOYOUHOST_PAT` — used to publish releases and dispatch follow-up workflows
 - `CF_ACCOUNT_ID`, `CF_ACCESS_KEY_ID`, `CF_SECRET_ACCESS_KEY`,
@@ -44,17 +36,15 @@ Workflows only build when explicitly requested:
 
 - `build-and-pre-release.yaml` — builds firmware, creates a pre-release on
   GitHub, uploads artifacts to R2, promotes to the `beta` channel.
-- `promote-to-prod.yaml` — fires when a GitHub release is marked as
-  released; promotes the matching artifacts in R2 to `production` and
-  triggers a Pages rebuild.
-- `publish-pages.yaml` — builds and deploys the GitHub Pages landing page
-  with embedded firmware downloads.
-- `r2-cleanup.yaml` — daily cleanup of stale artifacts in R2.
+- `promote-to-prod.yaml` — fires when a GitHub release is marked as released;
+  promotes the matching artifacts in R2 to `production` and triggers a Pages
+  rebuild.
+- `publish-pages.yaml` — builds and deploys the GitHub Pages landing page with
+  embedded firmware downloads.
+- `r2-cleanup.yaml` — weekly cleanup of stale artifacts in R2 (Saturdays at
+  02:00 UTC).
 
-## How shared parameters work
+## Credits
 
-`project.yaml` is the single source of truth. The composite action at
-`.github/actions/load-project-config` reads it once per workflow run and
-exposes the values as job outputs. Workflows reference those outputs
-instead of hard-coding strings, so a new project only needs to edit
-`project.yaml` to wire up the entire pipeline.
+The tipping-bucket rain gauge hardware design is based on
+[Rain Gauge by MakerWorld](https://makerworld.com/en/models/1366151-rain-gauge#profileId-1411849).

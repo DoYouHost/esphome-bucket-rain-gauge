@@ -7,32 +7,32 @@
 #   openssl rand -base64 24
 
 substitutions:
-  API_KEY: "REPLACE_WITH_BASE64_KEY"
-  OTA_PASSWORD: "REPLACE_WITH_OTA_PASSWORD"
-  PROD_MANIFEST_URL: "https://morganmlg.com/ProjectTemplate/manifest.json"
-  BETA_MANIFEST_URL: "https://morganmlg.com/ProjectTemplate/manifest-beta.json"
+  API_KEY: "mmz2rre/GzNH7GFXcOKkJHicqeYhahefMZrLA5ArHsI="
+  OTA_PASSWORD: "OwRKb2kXFQT0NFhk7/ydpE+YCV+4ytk0"
+  PROD_MANIFEST_URL: "https://morganmlg.com/BucketRainGauge/manifest.json"
+  BETA_MANIFEST_URL: "https://morganmlg.com/BucketRainGauge/manifest-beta.json"
   WEB_USERNAME: "esphome"
   WEB_PASSWORD: "esphome"
-  AP_SSID: "Project Template"
+  AP_SSID: "Bucket Rain Gauge"
   AP_PASSWORD: "esphome-fallback"
 
 esphome:
-  name: project-template
-  friendly_name: "Project Template"
-  comment: "ESP32 based DoYouHost project"
+  name: bucket-rain-gauge
+  friendly_name: "Bucket Rain Gauge"
+  comment: "ESP32-C3 tipping-bucket rain gauge"
   name_add_mac_suffix: true
   project:
-    name: "DoYouHost.ProjectTemplate"
+    name: "DoYouHost.BucketRainGauge"
     version: "dev"
 
 esp32:
-  board: esp32dev
+  board: seeed_xiao_esp32c3
   framework:
     type: esp-idf
     version: recommended
 
 dashboard_import:
-  package_import_url: github://DoYouHost/ProjectTemplate/esp32-template.yml@main
+  package_import_url: github://DoYouHost/esphome-bucket-rain-gauge/bucket-rain-gauge.yml@main
   import_full_config: false
 
 packages:
