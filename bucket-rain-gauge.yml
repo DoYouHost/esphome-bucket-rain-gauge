@@ -88,6 +88,39 @@ script:
       - delay: 10s
       - lambda: "id(improv_ble).stop();"
 
+time:
+  - platform: homeassistant
+    id: ha_time
+    on_time:
+      # Daily: every day at local midnight.
+      - hours: 0
+        minutes: 0
+        seconds: 0
+        then:
+          - lambda: "id(rain_daily_mm) = 0;"
+      # Weekly: Monday at midnight.
+      - hours: 0
+        minutes: 0
+        seconds: 0
+        days_of_week: MON
+        then:
+          - lambda: "id(rain_weekly_mm) = 0;"
+      # Monthly: 1st of the month at midnight.
+      - hours: 0
+        minutes: 0
+        seconds: 0
+        days_of_month: 1
+        then:
+          - lambda: "id(rain_monthly_mm) = 0;"
+      # Annual: 1 January at midnight.
+      - hours: 0
+        minutes: 0
+        seconds: 0
+        days_of_month: 1
+        months: JAN
+        then:
+          - lambda: "id(rain_annual_mm) = 0;"
+
 sensor:
   - platform: adc
     pin: ${HALL_SENSOR_PIN}
@@ -137,6 +170,105 @@ sensor:
       internal: true
       oversampling: 16x
 
+  - platform: template
+    name: "Total Rainfall"
+    id: rain_total
+    unit_of_measurement: "mm"
+    device_class: precipitation
+    icon: "mdi:cup-water"
+    accuracy_decimals: 2
+    state_class: total_increasing
+    update_interval: 60s
+    lambda: "return id(rain_total_mm);"
+
+  - platform: template
+    name: "Rainfall Today"
+    id: rain_daily
+    unit_of_measurement: "mm"
+    device_class: precipitation
+    icon: "mdi:cup-water"
+    accuracy_decimals: 2
+    state_class: total_increasing
+    disabled_by_default: true
+    update_interval: 60s
+    lambda: "return id(rain_daily_mm);"
+
+  - platform: template
+    name: "Rainfall This Week"
+    id: rain_weekly
+    unit_of_measurement: "mm"
+    device_class: precipitation
+    icon: "mdi:cup-water"
+    accuracy_decimals: 2
+    state_class: total_increasing
+    disabled_by_default: true
+    update_interval: 60s
+    lambda: "return id(rain_weekly_mm);"
+
+  - platform: template
+    name: "Rainfall This Month"
+    id: rain_monthly
+    unit_of_measurement: "mm"
+    device_class: precipitation
+    icon: "mdi:cup-water"
+    accuracy_decimals: 2
+    state_class: total_increasing
+    disabled_by_default: true
+    update_interval: 60s
+    lambda: "return id(rain_monthly_mm);"
+
+  - platform: template
+    name: "Rainfall This Year"
+    id: rain_annual
+    unit_of_measurement: "mm"
+    device_class: precipitation
+    icon: "mdi:cup-water"
+    accuracy_decimals: 2
+    state_class: total_increasing
+    disabled_by_default: true
+    update_interval: 60s
+    lambda: "return id(rain_annual_mm);"
+
+  - platform: template
+    name: "Rain Rate"
+    id: rain_rate_1min
+    unit_of_measurement: "mm/min"
+    icon: "mdi:weather-pouring"
+    accuracy_decimals: 2
+    state_class: measurement
+    update_interval: 60s
+    lambda: |-
+      int count = id(rain_count);
+      id(rain_count) = 0;
+      return count * id(rain_mm_per_tip).state;
+
+  - platform: template
+    name: "Rain Rate (10 min avg)"
+    id: rain_rate_10min
+    unit_of_measurement: "mm/min"
+    icon: "mdi:weather-pouring"
+    accuracy_decimals: 2
+    state_class: measurement
+    update_interval: 600s
+    lambda: |-
+      int count = id(rain_count_10);
+      id(rain_count_10) = 0;
+      return count * id(rain_mm_per_tip).state / 10.0;
+
+  - platform: template
+    name: "Rain Rate (hourly)"
+    id: rain_rate_60min
+    unit_of_measurement: "mm/h"
+    device_class: precipitation_intensity
+    icon: "mdi:weather-pouring"
+    accuracy_decimals: 2
+    state_class: measurement
+    update_interval: 3600s
+    lambda: |-
+      int count = id(rain_count_60);
+      id(rain_count_60) = 0;
+      return count * id(rain_mm_per_tip).state;
+
 number:
   - platform: template
     id: tip_threshold
@@ -151,6 +283,19 @@ number:
     unit_of_measurement: "V"
     mode: box
 
+  - platform: template
+    id: rain_mm_per_tip
+    name: "Rain Per Tip"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: "0.64"
+    min_value: 0.01
+    max_value: 5.0
+    step: 0.01
+    unit_of_measurement: "mm"
+    mode: box
+
 switch:
   - platform: template
     id: tip_on_falling
@@ -158,6 +303,40 @@ switch:
     entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
+
+globals:
+  - id: rain_count
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: rain_count_10
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: rain_count_60
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: rain_total_mm
+    type: float
+    restore_value: true
+    initial_value: '0'
+  - id: rain_daily_mm
+    type: float
+    restore_value: true
+    initial_value: '0'
+  - id: rain_weekly_mm
+    type: float
+    restore_value: true
+    initial_value: '0'
+  - id: rain_monthly_mm
+    type: float
+    restore_value: true
+    initial_value: '0'
+  - id: rain_annual_mm
+    type: float
+    restore_value: true
+    initial_value: '0'
 
 binary_sensor:
   - platform: template
@@ -168,3 +347,15 @@ binary_sensor:
       if (isnan(v)) return {};  // keep last state until a valid reading
       float t = id(tip_threshold).state;
       return id(tip_on_falling).state ? (v < t) : (v > t);
+    on_state:
+      then:
+        - lambda: |-
+            id(rain_count) += 1;
+            id(rain_count_10) += 1;
+            id(rain_count_60) += 1;
+            float mm = id(rain_mm_per_tip).state;
+            id(rain_total_mm) += mm;
+            id(rain_daily_mm) += mm;
+            id(rain_weekly_mm) += mm;
+            id(rain_monthly_mm) += mm;
+            id(rain_annual_mm) += mm;
