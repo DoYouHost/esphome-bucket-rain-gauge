@@ -6,6 +6,10 @@ substitutions:
   WEB_PASSWORD: "esphome"
   AP_SSID: "Bucket Rain Gauge"
   AP_PASSWORD: "esphome-fallback"
+  HALL_SENSOR_PIN: "GPIO3"
+  # I2C bus. GPIO6/GPIO7 = XIAO C3 pads D4/D5.
+  I2C_SDA_PIN: "GPIO6"
+  I2C_SCL_PIN: "GPIO7"
 
 esphome:
   name: bucket-rain-gauge
@@ -18,6 +22,7 @@ esphome:
 
 esp32:
   board: seeed_xiao_esp32c3
+  toolchain: esp-idf
   framework:
     type: esp-idf
     version: recommended
@@ -65,10 +70,16 @@ provisioning:
 api:
   reboot_timeout: 15min
   encryption:
+    key: !secret api_key
 
 ota:
   - platform: esphome
     password: "${OTA_PASSWORD}"
+
+i2c:
+  sda: ${I2C_SDA_PIN}
+  scl: ${I2C_SCL_PIN}
+  scan: true
 
 script:
   - id: improv_disable_grace
@@ -76,3 +87,84 @@ script:
     then:
       - delay: 10s
       - lambda: "id(improv_ble).stop();"
+
+sensor:
+  - platform: adc
+    pin: ${HALL_SENSOR_PIN}
+    id: hall_voltage
+    name: "Hall Sensor Voltage"
+    attenuation: 12db
+    update_interval: 1s
+    samples: 16
+    unit_of_measurement: "V"
+    accuracy_decimals: 3
+    device_class: voltage
+    state_class: measurement
+    entity_category: diagnostic
+    filters:
+      - median:
+          window_size: 5
+          send_every: 1
+          send_first_at: 1
+
+  - platform: aht10
+    variant: AHT20
+    address: 0x38
+    update_interval: 60s
+    temperature:
+      name: "Temperature"
+      filters:
+        - exponential_moving_average:
+            alpha: 0.3
+    humidity:
+      name: "Humidity"
+      filters:
+        - exponential_moving_average:
+            alpha: 0.3
+
+  - platform: bmp280_i2c
+    address: 0x77
+    update_interval: 60s
+    iir_filter: "OFF"
+    pressure:
+      name: "Pressure"
+      oversampling: 16x
+      filters:
+        - exponential_moving_average:
+            alpha: 0.3
+    temperature:
+      id: bmp280_temperature
+      internal: true
+      oversampling: 16x
+
+number:
+  - platform: template
+    id: tip_threshold
+    name: "Tip Threshold"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: "1.65"
+    min_value: 0.0
+    max_value: 3.3
+    step: 0.01
+    unit_of_measurement: "V"
+    mode: box
+
+switch:
+  - platform: template
+    id: tip_on_falling
+    name: "Tip On Falling Signal"
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+binary_sensor:
+  - platform: template
+    id: bucket_position
+    name: "Bucket Position"
+    lambda: |-
+      float v = id(hall_voltage).state;
+      if (isnan(v)) return {};  // keep last state until a valid reading
+      float t = id(tip_threshold).state;
+      return id(tip_on_falling).state ? (v < t) : (v > t);
